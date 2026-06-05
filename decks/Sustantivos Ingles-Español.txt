@@ -3,4 +3,4 @@ flower;(la) flor <br><br> <i>La flor del jardín es de colores vivos.</i>
 tower;(la) torre <br><br> <i>La torre se alzaba sobre la colina.</i>
 serendipity / fortuity;(the) serendipia <br><br> <i>Descubrió la solución por pura serendipia mientras revisaba documentos antiguos.</i>
 epiphany;(the) epifanía <br><br> <i>Tuvo una epifanía sobre su carrera al leer aquel artículo.</i>
-quandary;(a) encrucijada <br><br> <i>Se encontró en una encrucijada al decidir entre aceptar el nuevo puesto o seguir en su empresa actual.</i>
+table;(the) mesa <br><br> <i>Puse el libro sobre la mesa.</i>

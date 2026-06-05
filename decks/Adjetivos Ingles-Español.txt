@@ -4,3 +4,5 @@ broken;roto <br><br> <i>El vaso está roto.</i>
 meticulous;meticuloso <br><br> <i>Ella revisó el informe con un ojo meticuloso, sin pasar por alto ningún detalle.</i>
 obsolete;obsoleto <br><br> <i>El software que utilizamos se ha vuelto obsoleto frente a las nuevas tecnologías.</i>
 flamboyant;extravagante <br><br> <i>Su estilo de vestir es tan extravagante que siempre llama la atención en las reuniones.</i>
+belligerent;beligerante <br><br> <i>El tono beligerante del discurso provocó una fuerte reacción.</i>
+cathartic;catártico <br><br> <i>Escribir en su diario resulta una experiencia catártica.</i>
