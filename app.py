@@ -474,10 +474,13 @@ with st.sidebar:
     with col_lang2:
         new_target_lang = st.selectbox("A", langs, index=0, key="new_target_lang")
 
+    levels = ["A1", "A2", "B1", "B2", "C1", "C2"]
+    new_level = st.selectbox("Nivel CEFR", levels, index=3, key="new_level")
+
     if st.button("Crear contexto", key="create_context", use_container_width=True, type="primary"):
         if new_context_name.strip():
             try:
-                result = context_manager.create_context(new_context_name, new_source_lang, new_target_lang)
+                result = context_manager.create_context(new_context_name, new_source_lang, new_target_lang, new_level)
                 st.session_state.active_context = result["name"]
                 st.toast(f"✅ Contexto '{result['name']}' creado", icon="📚")
                 st.rerun()
@@ -507,48 +510,103 @@ if st.session_state.active_context:
     ctx_meta = context_manager.get_context_metadata(st.session_state.active_context)
     source_lang = ctx_meta.get("source_lang", "Español")
     target_lang = ctx_meta.get("target_lang", "Alemán")
+    level = ctx_meta.get("level", "B2")
 
-    # Panel de nueva tarjeta
+    # Panel de contexto activo
     st.markdown(
         f'<div class="glass-panel">'
-        f'  <h3>📝 Nueva tarjeta — <span style="color: #a78bfa;">{st.session_state.active_context}</span> '
-        f'  <span style="font-size: 0.8em; color: var(--text-secondary);">({source_lang} → {target_lang})</span></h3>'
+        f'  <h3>📝 Contexto Activo — <span style="color: #a78bfa;">{st.session_state.active_context}</span> '
+        f'  <span style="font-size: 0.8em; color: var(--text-secondary);">({source_lang} → {target_lang} | {level})</span></h3>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    # Feedback si Ollama no está conectado
-    if not st.session_state.ollama_status:
-        st.warning("⚠️ Ollama no disponible — comprueba la conexión desde el panel lateral.")
+    tab_manual, tab_ia = st.tabs(["➕ Añadir Manual", "✨ Descubrir con IA"])
 
-    # Flujo minimalista: Input de chat
-    word_input = st.chat_input(
-        f"Escribe la palabra en {source_lang} y pulsa Enter...",
-        key="word_input",
-    )
-
-    if word_input and word_input.strip():
+    with tab_manual:
+        # Feedback si Ollama no está conectado
         if not st.session_state.ollama_status:
-            st.error("No se puede traducir sin conexión a Ollama.")
-        else:
-            with st.spinner(f"🔄 Consultando a la IA y guardando '{word_input.strip()}'..."):
-                result = ollama_client.translate_word(
-                    word=word_input.strip(),
-                    source_lang=source_lang,
-                    target_lang=target_lang,
-                    context_name=st.session_state.active_context,
-                )
-                
-                if result["success"]:
-                    # Verificar duplicado con el frente generado por la IA
-                    if anki_manager.card_exists(deck_path, result["front"]):
-                        st.warning(f"⚠️ Ya existe una tarjeta con el frente '{result['front']}'.")
+            st.warning("⚠️ Ollama no disponible — comprueba la conexión desde el panel lateral.")
+
+        # Flujo minimalista: Input de chat
+        word_input = st.chat_input(
+            f"Escribe la palabra en {source_lang} y pulsa Enter...",
+            key="word_input",
+        )
+
+        if word_input and word_input.strip():
+            if not st.session_state.ollama_status:
+                st.error("No se puede traducir sin conexión a Ollama.")
+            else:
+                with st.spinner(f"🔄 Consultando a la IA y guardando '{word_input.strip()}'..."):
+                    result = ollama_client.translate_word(
+                        word=word_input.strip(),
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        context_name=st.session_state.active_context,
+                    )
+                    
+                    if result["success"]:
+                        if anki_manager.card_exists(deck_path, result["front"]):
+                            st.warning(f"⚠️ Ya existe una tarjeta con el frente '{result['front']}'.")
+                        else:
+                            anki_manager.add_card(deck_path, result["front"], result["translation"], result["example"])
+                            st.toast(f"✅ Tarjeta añadida: {result['front']}", icon="🎴")
+                            st.rerun()
                     else:
-                        anki_manager.add_card(deck_path, result["front"], result["translation"], result["example"])
-                        st.toast(f"✅ Tarjeta añadida automáticamente: {result['front']}", icon="🎴")
-                        st.rerun()
+                        st.error(f"Error de la IA: {result['error']}")
+
+    with tab_ia:
+        st.markdown("### 🎲 Recomendador de Vocabulario")
+        st.markdown(f"La IA generará nuevas tarjetas del nivel **{level}** que aún no tengas en este mazo.")
+        
+        amount = st.slider("Cantidad de tarjetas a generar:", 1, 20, 5)
+        
+        if st.button("🚀 Generar Recomendaciones", type="primary", use_container_width=True):
+            if not st.session_state.ollama_status:
+                st.error("No se puede generar sin conexión a Ollama.")
+            else:
+                existing_cards = anki_manager.read_cards(deck_path)
+                existing_words = [c["front"] for c in existing_cards]
+                
+                with st.spinner(f"🔄 La IA está pensando en {amount} palabras nuevas (puede tardar unos 10-20 segundos)..."):
+                    res = ollama_client.generate_recommendations(
+                        amount=amount,
+                        existing_words=existing_words,
+                        context_name=st.session_state.active_context,
+                        level=level,
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                    )
+                    
+                    if res["success"]:
+                        st.session_state.pending_recommendations = res["recommendations"]
+                    else:
+                        st.error(f"Error de la IA: {res['error']}")
+        
+        if st.session_state.get("pending_recommendations"):
+            st.markdown("---")
+            st.markdown("#### 🧐 Revisa y selecciona las tarjetas:")
+            
+            selected_indices = []
+            for i, rec in enumerate(st.session_state.pending_recommendations):
+                label = f"**{rec.get('front', '')}** ➔ {rec.get('translation', '')} *(Ej: {rec.get('example', '')})*"
+                if st.checkbox(label, value=True, key=f"chk_rec_{i}"):
+                    selected_indices.append(i)
+                    
+            if st.button("💾 Aprobar y Guardar Seleccionadas", type="primary"):
+                if not selected_indices:
+                    st.warning("No has seleccionado ninguna tarjeta.")
                 else:
-                    st.error(f"Error de la IA: {result['error']}")
+                    saved_count = 0
+                    for i in selected_indices:
+                        rec = st.session_state.pending_recommendations[i]
+                        anki_manager.add_card(deck_path, rec["front"], rec["translation"], rec["example"])
+                        saved_count += 1
+                    
+                    st.session_state.pending_recommendations = []
+                    st.toast(f"✅ Se guardaron {saved_count} nuevas tarjetas en el mazo.", icon="🎴")
+                    st.rerun()
 
     # ─────────────────────────────────────────────
     # MAIN — Feed de tarjetas del contexto activo

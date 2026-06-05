@@ -1,6 +1,12 @@
 {
-    "Adjetivos C1 Español-Ingles": {
-        "source_lang": "Español",
-        "target_lang": "Inglés"
+    "Adjetivos Ingles-Español": {
+        "source_lang": "Inglés",
+        "target_lang": "Español",
+        "level": "C1"
+    },
+    "Sustantivos Ingles-Español": {
+        "source_lang": "Inglés",
+        "target_lang": "Español",
+        "level": "C1"
     }
 }

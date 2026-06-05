@@ -181,7 +181,102 @@ def translate_word(
         }
 
 
-def _parse_ollama_response(content: str) -> dict | None:
+def generate_recommendations(
+    amount: int,
+    existing_words: list[str],
+    context_name: str,
+    level: str,
+    source_lang: str,
+    target_lang: str,
+    model: str = DEFAULT_MODEL,
+) -> dict:
+    """Genera recomendaciones de palabras nuevas usando Ollama.
+
+    Args:
+        amount: Cantidad de palabras a generar (1-20).
+        existing_words: Lista de palabras frontales que ya existen para no repetirlas.
+        context_name: Nombre del contexto.
+        level: Nivel CEFR (ej. 'B2').
+        source_lang: Idioma de origen.
+        target_lang: Idioma de destino.
+        model: Modelo de Ollama.
+
+    Returns:
+        {
+            "success": bool,
+            "recommendations": list[dict],
+            "error": str | None
+        }
+    """
+    existing_str = ", ".join(existing_words)
+
+    system_prompt = (
+        f"Eres un experto lingüista y profesor de vocabulario. "
+        f"Tu tarea es recomendar exactamente {amount} palabras NUEVAS para un estudiante de nivel {level} "
+        f"en la temática o contexto '{context_name}'. "
+        f"Los idiomas son: origen {source_lang}, destino {target_lang}.\n\n"
+        f"RESTRICCIÓN CRÍTICA: NO puedes sugerir ninguna de estas palabras, ya existen en el mazo: [{existing_str}].\n\n"
+        f"INSTRUCCIONES ESTRICTAS DE FORMATO:\n"
+        f"Dependiendo del tipo de palabra, debes formatear los valores del JSON EXACTAMENTE así:\n\n"
+        f"REGLA 1 - SI ES UN SUSTANTIVO:\n"
+        f"- \"front\": La palabra en {source_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
+        f"- \"translation\": Estructura estricta: (artículo) traducción. NO AÑADAS género ni plural. Ej: '(die) Vorstellung' o '(the) car'\n"
+        f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
+        f"REGLA 2 - SI ES CUALQUIER OTRA COSA (Verbos, Adjetivos, etc.):\n"
+        f"- \"front\": La palabra en {source_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"
+        f"- \"translation\": Solo la traducción en {target_lang}. Ej: 'auflösen'\n"
+        f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
+        f"Responde ÚNICAMENTE con un JSON válido que sea una lista (array) de {amount} objetos con estas claves, sin texto adicional ni markdown.\n"
+        f"Formato esperado:\n"
+        f"[\n"
+        f"  {{\"front\": \"...\", \"translation\": \"...\", \"example\": \"...\"}},\n"
+        f"  ...\n"
+        f"]"
+    )
+
+    user_prompt = f"Genera {amount} palabras relacionadas con '{context_name}' para nivel {level}."
+
+    try:
+        response = requests.post(
+            f"{OLLAMA_BASE_URL}/api/chat",
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "stream": False,
+                "options": {
+                    "temperature": 0.7,
+                },
+            },
+            timeout=REQUEST_TIMEOUT * 2,
+        )
+
+        if response.status_code != 200:
+            return {"success": False, "recommendations": [], "error": f"Ollama respondió con código {response.status_code}"}
+
+        data = response.json()
+        content = data.get("message", {}).get("content", "")
+        
+        result = _parse_ollama_response(content)
+        
+        if result is not None and isinstance(result, list):
+            return {"success": True, "recommendations": result, "error": None}
+        elif result is not None and isinstance(result, dict) and "recommendations" in result:
+             return {"success": True, "recommendations": result["recommendations"], "error": None}
+        else:
+            return {"success": False, "recommendations": [], "error": f"No se pudo parsear como lista: {content[:200]}"}
+
+    except requests.ConnectionError:
+        return {"success": False, "recommendations": [], "error": "No se pudo conectar con Ollama."}
+    except requests.Timeout:
+        return {"success": False, "recommendations": [], "error": "Ollama tardó demasiado en responder."}
+    except Exception as e:
+        return {"success": False, "recommendations": [], "error": f"Error: {str(e)}"}
+
+
+def _parse_ollama_response(content: str) -> dict | list | None:
     """Intenta parsear el JSON de la respuesta de Ollama.
 
     Maneja casos donde Ollama envuelve el JSON en markdown code blocks.
@@ -190,7 +285,7 @@ def _parse_ollama_response(content: str) -> dict | None:
         content: Texto de respuesta de Ollama
 
     Returns:
-        Dict parseado o None si no se pudo parsear
+        Dict o List parseado o None si no se pudo parsear
     """
     content = content.strip()
 

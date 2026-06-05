@@ -71,20 +71,22 @@ def list_contexts() -> list[dict]:
                 "card_count": card_count,
                 "source_lang": ctx_meta.get("source_lang", "Desconocido"),
                 "target_lang": ctx_meta.get("target_lang", "Desconocido"),
+                "level": ctx_meta.get("level", "B2"),
             })
 
     return contexts
 
-def create_context(name: str, source_lang: str, target_lang: str) -> dict:
-    """Crea un nuevo contexto (archivo .txt vacío y guarda sus idiomas).
+def create_context(name: str, source_lang: str, target_lang: str, level: str = "B2") -> dict:
+    """Crea un nuevo contexto (archivo .txt vacío y guarda sus idiomas y nivel).
 
     Args:
         name: Nombre del contexto (ej: 'Vocabulario ES→DE')
         source_lang: Idioma de origen
         target_lang: Idioma de destino
+        level: Nivel (ej: 'B2')
 
     Returns:
-        Dict con {name, path, source_lang, target_lang} del contexto creado
+        Dict con {name, path, source_lang, target_lang, level} del contexto creado
 
     Raises:
         ValueError: Si el nombre es vacío o el contexto ya existe
@@ -108,11 +110,12 @@ def create_context(name: str, source_lang: str, target_lang: str) -> dict:
     metadata = _load_metadata()
     metadata[safe_name] = {
         "source_lang": source_lang,
-        "target_lang": target_lang
+        "target_lang": target_lang,
+        "level": level
     }
     _save_metadata(metadata)
 
-    return {"name": safe_name, "path": path, "source_lang": source_lang, "target_lang": target_lang}
+    return {"name": safe_name, "path": path, "source_lang": source_lang, "target_lang": target_lang, "level": level}
 
 def delete_context(name: str) -> bool:
     """Elimina un contexto (borra el archivo .txt y su metadata).
@@ -164,7 +167,7 @@ def get_context_metadata(name: str) -> dict:
         Dict con {"source_lang": "...", "target_lang": "..."}
     """
     metadata = _load_metadata()
-    return metadata.get(name, {"source_lang": "Español", "target_lang": "Alemán"})
+    return metadata.get(name, {"source_lang": "Español", "target_lang": "Alemán", "level": "B2"})
 
 def _count_cards(path: str) -> int:
     """Cuenta las tarjetas válidas en un archivo.
