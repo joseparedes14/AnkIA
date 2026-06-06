@@ -1,6 +1,3 @@
 penis;(el) pene <br><br> <i>El pene es un órgano reproductivo masculino.</i>
 flower;(la) flor <br><br> <i>La flor del jardín es de colores vivos.</i>
 tower;(la) torre <br><br> <i>La torre se alzaba sobre la colina.</i>
-serendipity / fortuity;(the) serendipia <br><br> <i>Descubrió la solución por pura serendipia mientras revisaba documentos antiguos.</i>
-epiphany;(the) epifanía <br><br> <i>Tuvo una epifanía sobre su carrera al leer aquel artículo.</i>
-table;(the) mesa <br><br> <i>Puse el libro sobre la mesa.</i>

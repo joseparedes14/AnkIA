@@ -1,7 +1,7 @@
 import sys
 import os
-from PySide6.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QThread, Signal, QSize, QTimer
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QBrush, QPen, QCursor, QGuiApplication
+from PySide6.QtCore import Qt, QThread, Signal, QSize, QTimer
+from PySide6.QtGui import QColor, QCursor, QGuiApplication
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QStackedWidget,
@@ -96,16 +96,18 @@ QLabel#FieldLabel {
 
 /* ── Handle (pestaña lateral) — ámbar ── */
 #HandleButton {
-    background-color: transparent;
+    background-color: #0a0a0f;
     border: none;
+    border-left: 2px solid #f59e0b;
     color: #f59e0b;
-    font-size: 20px;
-    font-weight: 200;
+    font-size: 22px;
+    font-weight: 300;
     padding: 0;
 }
 #HandleButton:hover {
-    background-color: rgba(245, 158, 11, 0.1);
+    background-color: #1c1c28;
     color: #fbbf24;
+    border-left: 2px solid #fbbf24;
 }
 
 /* ── Botones ── */
@@ -421,68 +423,81 @@ class AnkiaWidget(QWidget):
         self.handle_width = 30
         self.active_context = None
         self.pending_recommendations = []
+        self._collapsed = False
         self._dragging = False
         self._drag_offset = None
+        self._preferred_y = 0
 
-        # Geometría — detecta la pantalla donde está el cursor (multi-monitor)
-        self.target_screen = self._resolve_target_screen()
-        self.screen_rect = self.target_screen.availableGeometry()
-        self.window_height = int(self.screen_rect.height() * 0.7)
-        self.y_pos = int((self.screen_rect.height() - self.window_height) / 2)
-        self.global_y = self.screen_rect.y() + self.y_pos
+        self._update_screen_rect()
+        self._apply_geometry()
 
         self.setup_ui()
+        self._position_children()
         self.refresh_contexts()
 
-    def _resolve_target_screen(self):
-        """Detecta la pantalla bajo el cursor; fallback robusto a la principal."""
-        cursor_pos = QCursor.pos()
-        screen = QGuiApplication.screenAt(cursor_pos)
-        if screen is not None:
-            return screen
-        for s in QGuiApplication.screens():
-            if s.geometry().contains(cursor_pos):
+    # ─────────────────────────────────────────────
+    # Anclaje a la derecha — helpers
+    # ─────────────────────────────────────────────
+    def _current_screen(self):
+        win = self.windowHandle()
+        if win is not None:
+            s = win.screen()
+            if s is not None:
                 return s
+        s = QGuiApplication.screenAt(QCursor.pos())
+        if s is not None:
+            return s
         return QGuiApplication.primaryScreen()
 
-    def _apply_screen_geometry(self):
-        """Recalcula y aplica la geometría basándose en la pantalla actual."""
-        if self.screen_rect.width() <= 0 or self.screen_rect.height() <= 0:
-            self.target_screen = QGuiApplication.primaryScreen()
-            self.screen_rect = self.target_screen.availableGeometry()
-        self.window_height = int(self.screen_rect.height() * 0.7)
-        self.y_pos = int((self.screen_rect.height() - self.window_height) / 2)
-        self.global_y = self.screen_rect.y() + self.y_pos
-        right_edge = self.screen_rect.x() + self.screen_rect.width()
-        x = right_edge - self.expanded_width - self.handle_width
-        y = self.global_y
-        w = self.expanded_width + self.handle_width
-        h = self.window_height
-        self.setGeometry(x, y, w, h)
-        self.move(x, y)
+    def _update_screen_rect(self):
+        screen = self._current_screen()
+        self._sr = screen.availableGeometry()
+        self._wh = int(self._sr.height() * 0.7)
+        center = self._sr.y() + (self._sr.height() - self._wh) // 2
+        if self._preferred_y == 0:
+            self._preferred_y = center
+        self._clamp_y()
+
+    def _clamp_y(self):
+        top = self._sr.y()
+        bot = self._sr.bottom() - self._wh
+        if self._preferred_y < top:
+            self._preferred_y = top
+        elif self._preferred_y > bot:
+            self._preferred_y = bot
+
+    def _full_w(self):
+        return self.expanded_width + self.handle_width
+
+    def _right_x(self, w):
+        return self._sr.x() + self._sr.width() - w
+
+    def _apply_geometry(self):
+        w = self.handle_width if self._collapsed else self._full_w()
+        self.setGeometry(self._right_x(w), self._preferred_y, w, self._wh)
+
+    def _position_children(self):
+        if not hasattr(self, 'handle_btn') or not hasattr(self, 'main_panel'):
+            return
+        w = self.width()
+        h = self.height()
+        hw = self.handle_width
+        pw = self.expanded_width
+
+        self.handle_btn.move(w - hw, max(0, (h - 80) // 2))
+
+        if self._collapsed:
+            self.main_panel.hide()
+            self.toast_label.hide()
+        else:
+            self.main_panel.setGeometry(w - hw - pw, 0, pw, h)
+            self.main_panel.show()
 
     def showEvent(self, event):
-        """Al mostrarse, fuerza la pantalla correcta tras un breve delay."""
         super().showEvent(event)
-        QTimer.singleShot(0, self._force_position)
-        QTimer.singleShot(150, self._force_position)
-
-    def _force_position(self):
-        """Fuerza el widget a la pantalla detectada por el cursor."""
-        win = self.windowHandle()
-        if win is None:
-            return
-        # Re-resuelve por si el cursor se movió
-        self.target_screen = self._resolve_target_screen()
-        try:
-            if win.screen() is not self.target_screen:
-                win.setScreen(self.target_screen)
-        except Exception:
-            pass
-        actual = win.screen() or self.target_screen
-        self.target_screen = actual
-        self.screen_rect = actual.availableGeometry()
-        self._apply_screen_geometry()
+        self._update_screen_rect()
+        self._apply_geometry()
+        self._position_children()
         self.raise_()
         
     def setup_ui(self):
@@ -493,35 +508,15 @@ class AnkiaWidget(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # Widget siempre expandido, anclado a la derecha de la pantalla destino
-        right_edge = self.screen_rect.x() + self.screen_rect.width()
-        self.setGeometry(
-            right_edge - self.expanded_width - self.handle_width,
-            self.global_y,
-            self.expanded_width + self.handle_width,
-            self.window_height,
-        )
-
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        # Handle lateral — la flecha ancla a la derecha
-        self.handle_btn = QPushButton("›")
+        # Handle — posicionado absolutamente via resizeEvent
+        self.handle_btn = QPushButton("›", self)
         self.handle_btn.setObjectName("HandleButton")
         self.handle_btn.setFixedSize(self.handle_width, 80)
         self.handle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.handle_btn.clicked.connect(self.snap_to_right)
 
-        handle_container = QVBoxLayout()
-        handle_container.setContentsMargins(0, 0, 0, 0)
-        handle_container.addStretch()
-        handle_container.addWidget(self.handle_btn)
-        handle_container.addStretch()
-        main_layout.addLayout(handle_container)
-
-        # Panel principal
-        self.main_panel = QFrame()
+        # Panel principal — posicionado absolutamente via resizeEvent
+        self.main_panel = QFrame(self)
         self.main_panel.setObjectName("MainPanel")
         self.main_panel.setFixedWidth(self.expanded_width)
 
@@ -534,8 +529,6 @@ class AnkiaWidget(QWidget):
         self.panel_layout = QVBoxLayout(self.main_panel)
         self.panel_layout.setContentsMargins(0, 0, 0, 0)
         self.panel_layout.setSpacing(0)
-
-        main_layout.addWidget(self.main_panel)
 
         self.stacked_widget = QStackedWidget()
         self.panel_layout.addWidget(self.stacked_widget)
@@ -552,6 +545,27 @@ class AnkiaWidget(QWidget):
         self.toast_label.hide()
 
         self.setStyleSheet(GLOBAL_STYLES)
+
+    def _position_children(self):
+        if not hasattr(self, 'handle_btn') or not hasattr(self, 'main_panel'):
+            return
+        w = self.width()
+        h = self.height()
+        hw = self.handle_width
+        pw = self.expanded_width
+
+        self.handle_btn.move(w - hw, max(0, (h - 80) // 2))
+
+        if self._collapsed:
+            self.main_panel.hide()
+            self.toast_label.hide()
+        else:
+            self.main_panel.setGeometry(w - hw - pw, 0, pw, h)
+            self.main_panel.show()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._position_children()
 
     def setup_main_view(self):
         page = QWidget()
@@ -848,7 +862,6 @@ class AnkiaWidget(QWidget):
     # Arrastrar + anclar a la derecha
     # ─────────────────────────────────────────────
     def _is_in_drag_area(self, pos) -> bool:
-        """Top 64px del widget, excluyendo controles interactivos."""
         if pos.y() >= 64:
             return False
         child = self.childAt(pos)
@@ -862,59 +875,42 @@ class AnkiaWidget(QWidget):
         if event.button() == Qt.MouseButton.LeftButton and self._is_in_drag_area(event.position().toPoint()):
             self._dragging = True
             self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            if hasattr(self, "anim") and self.anim is not None and self.anim.state() == QPropertyAnimation.State.Running:
-                self.anim.stop()
             event.accept()
         else:
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self._dragging and (event.buttons() & Qt.MouseButton.LeftButton):
-            new_pos = event.globalPosition().toPoint() - self._drag_offset
-            self.move(new_pos)
+            self.move(event.globalPosition().toPoint() - self._drag_offset)
             event.accept()
             return
-        if not self._dragging:
-            if self._is_in_drag_area(event.position().toPoint()):
-                self.setCursor(Qt.CursorShape.SizeAllCursor)
-            else:
-                self.unsetCursor()
+        if not self._dragging and self._is_in_drag_area(event.position().toPoint()):
+            self.setCursor(Qt.CursorShape.SizeAllCursor)
+        else:
+            self.unsetCursor()
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self._dragging and event.button() == Qt.MouseButton.LeftButton:
             self._dragging = False
+            self._preferred_y = self.geometry().y()
+            self._update_screen_rect()
+            self._apply_geometry()
+            self.raise_()
             event.accept()
         else:
             super().mouseReleaseEvent(event)
 
     def snap_to_right(self):
-        """Ancla el widget al borde derecho de la pantalla donde está ahora."""
-        if hasattr(self, "anim") and self.anim is not None and self.anim.state() == QPropertyAnimation.State.Running:
-            self.anim.stop()
+        self._collapsed = not self._collapsed
+        self._update_handle_arrow()
+        self._update_screen_rect()
+        self._apply_geometry()
+        self._position_children()
+        self.raise_()
 
-        win = self.windowHandle()
-        if win is not None and win.screen() is not None:
-            self.target_screen = win.screen()
-        self.screen_rect = self.target_screen.availableGeometry()
-
-        self.window_height = int(self.screen_rect.height() * 0.7)
-        self.y_pos = int((self.screen_rect.height() - self.window_height) / 2)
-        self.global_y = self.screen_rect.y() + self.y_pos
-        right_edge = self.screen_rect.x() + self.screen_rect.width()
-        target_rect = QRect(
-            right_edge - self.expanded_width - self.handle_width,
-            self.global_y,
-            self.expanded_width + self.handle_width,
-            self.window_height,
-        )
-
-        self.anim = QPropertyAnimation(self, b"geometry")
-        self.anim.setDuration(300)
-        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self.anim.setStartValue(self.geometry())
-        self.anim.setEndValue(target_rect)
-        self.anim.start()
+    def _update_handle_arrow(self):
+        self.handle_btn.setText("‹" if self._collapsed else "›")
 
     # ─────────────────────────────────────────────
     # Lógica de la App
@@ -1022,8 +1018,9 @@ class AnkiaWidget(QWidget):
     def show_toast(self, message):
         self.toast_label.setText(message)
         self.toast_label.adjustSize()
+        h = self._wh if hasattr(self, '_wh') else self.height()
         x = int(self.handle_width + (self.expanded_width - self.toast_label.width()) / 2)
-        y = self.window_height - self.toast_label.height() - 20
+        y = h - self.toast_label.height() - 20
         self.toast_label.move(x, y)
         self.toast_label.show()
         QTimer.singleShot(3000, self.toast_label.hide)
