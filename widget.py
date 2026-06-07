@@ -437,7 +437,7 @@ class AnkiaWidget(QWidget):
 
         self.setup_ui()
         self._position_children()
-        self.refresh_contexts()
+        QTimer.singleShot(0, self.refresh_contexts)  # Cargar mazos tras mostrar ventana
 
     # ─────────────────────────────────────────────
     # Anclaje a la derecha — helpers
@@ -537,10 +537,11 @@ class AnkiaWidget(QWidget):
         self.stacked_widget = QStackedWidget()
         self.panel_layout.addWidget(self.stacked_widget)
 
+        # Solo se crea la vista principal al inicio; el resto se crean bajo demanda
+        self._settings_created = False
+        self._deck_created = False
+        self._recs_created = False
         self.setup_main_view()
-        self.setup_settings_view()
-        self.setup_deck_view()
-        self.setup_recommendations_view()
 
         # Toast
         self.toast_label = QLabel("", self)
@@ -549,23 +550,6 @@ class AnkiaWidget(QWidget):
         self.toast_label.hide()
 
         self.setStyleSheet(GLOBAL_STYLES)
-
-    def _position_children(self):
-        if not hasattr(self, 'handle_btn') or not hasattr(self, 'main_panel'):
-            return
-        w = self.width()
-        h = self.height()
-        hw = self.handle_width
-        pw = self.expanded_width
-
-        self.handle_btn.move(w - hw, max(0, (h - 80) // 2))
-
-        if self._collapsed:
-            self.main_panel.hide()
-            self.toast_label.hide()
-        else:
-            self.main_panel.setGeometry(w - hw - pw, 0, pw, h)
-            self.main_panel.show()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -577,7 +561,7 @@ class AnkiaWidget(QWidget):
         layout.setContentsMargins(32, 32, 32, 28)
         layout.setSpacing(0)
 
-        # Header — ANKIA centrado, "IA" en ámbar
+        # Header — ANKIA centrado, "IA" en ámbar + botón cerrar
         brand = QLabel(
             '<span style="color:#fafafa;">ANK</span>'
             '<span style="color:#f59e0b;">IA</span>'
@@ -589,6 +573,12 @@ class AnkiaWidget(QWidget):
         brand_wrap.addStretch()
         brand_wrap.addWidget(brand)
         brand_wrap.addStretch()
+        close_btn = QPushButton("×")
+        close_btn.setObjectName("IconButton")
+        close_btn.setFixedSize(20, 20)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.clicked.connect(self.close_app)
+        brand_wrap.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
         layout.addLayout(brand_wrap)
         layout.addSpacing(16)
         layout.addWidget(_accent_line())
@@ -611,7 +601,7 @@ class AnkiaWidget(QWidget):
         btn_new = QPushButton("+ NUEVO MAZO")
         btn_new.setObjectName("GhostButton")
         btn_new.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_new.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
+        btn_new.clicked.connect(self.open_settings_view)
         actions.addWidget(btn_new)
         actions.addStretch()
         layout.addLayout(actions)
@@ -629,6 +619,7 @@ class AnkiaWidget(QWidget):
 
         layout.addStretch()
         self.stacked_widget.addWidget(page)
+        self.main_page = page
 
     def setup_settings_view(self):
         page = QWidget()
@@ -645,7 +636,7 @@ class AnkiaWidget(QWidget):
         btn_back = QPushButton("VOLVER")
         btn_back.setObjectName("GhostButton")
         btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_back.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
+        btn_back.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.main_page))
         header.addWidget(btn_back)
         layout.addLayout(header)
         layout.addSpacing(14)
@@ -723,6 +714,7 @@ class AnkiaWidget(QWidget):
 
         layout.addStretch()
         self.stacked_widget.addWidget(page)
+        self.settings_page = page
 
     def setup_deck_view(self):
         page = QWidget()
@@ -735,7 +727,7 @@ class AnkiaWidget(QWidget):
         btn_back = QPushButton("‹ VOLVER")
         btn_back.setObjectName("GhostButton")
         btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_back.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
+        btn_back.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.main_page))
         header.addWidget(btn_back)
         header.addStretch()
         btn_delete_mazo = QPushButton("ELIMINAR")
@@ -793,6 +785,7 @@ class AnkiaWidget(QWidget):
         layout.addWidget(self.deck_cards_scroll)
 
         self.stacked_widget.addWidget(page)
+        self.deck_page = page
 
     def setup_recommendations_view(self):
         page = QWidget()
@@ -805,7 +798,7 @@ class AnkiaWidget(QWidget):
         btn_back = QPushButton("‹ VOLVER")
         btn_back.setObjectName("GhostButton")
         btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_back.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))
+        btn_back.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.deck_page))
         header.addWidget(btn_back)
         header.addStretch()
         layout.addLayout(header)
@@ -873,6 +866,7 @@ class AnkiaWidget(QWidget):
         layout.addWidget(self.btn_save_recs)
 
         self.stacked_widget.addWidget(page)
+        self.recs_page = page
 
     # ─────────────────────────────────────────────
     # Arrastrar + anclar a la derecha
@@ -916,6 +910,9 @@ class AnkiaWidget(QWidget):
             event.accept()
         else:
             super().mouseReleaseEvent(event)
+
+    def close_app(self):
+        QApplication.quit()
 
     def snap_to_right(self):
         self._collapsed = not self._collapsed
@@ -961,7 +958,7 @@ class AnkiaWidget(QWidget):
             self.refresh_contexts()
             self.new_ctx_name.clear()
             self.new_ctx_description.clear()
-            self.stacked_widget.setCurrentIndex(0)
+            self.stacked_widget.setCurrentWidget(self.main_page)
             self.show_toast(f"Mazo '{name}' creado")
         except Exception as e:
             self.show_toast(f"Error: {e}")
@@ -1114,7 +1111,16 @@ class AnkiaWidget(QWidget):
 
         return frame
 
+    def open_settings_view(self):
+        if not self._settings_created:
+            self.setup_settings_view()
+            self._settings_created = True
+        self.stacked_widget.setCurrentWidget(self.settings_page)
+
     def open_deck_detail(self):
+        if not self._deck_created:
+            self.setup_deck_view()
+            self._deck_created = True
         items = self.list_contexts.selectedItems()
         if not items:
             self.show_toast("Selecciona un mazo primero")
@@ -1122,7 +1128,7 @@ class AnkiaWidget(QWidget):
         ctx_name = items[0].data(Qt.ItemDataRole.UserRole)
         self.active_context = ctx_name
         self.render_deck_view()
-        self.stacked_widget.setCurrentIndex(2)
+        self.stacked_widget.setCurrentWidget(self.deck_page)
 
     def _show_confirm_dialog(self, title: str, text: str) -> int:
         """Diálogo de confirmación con estilo coherente y botones diferenciados."""
@@ -1180,7 +1186,7 @@ class AnkiaWidget(QWidget):
             context_manager.delete_context(name)
             self.active_context = None
             self.refresh_contexts()
-            self.stacked_widget.setCurrentIndex(0)
+            self.stacked_widget.setCurrentWidget(self.main_page)
             self.show_toast("Mazo eliminado")
 
     def render_deck_view(self):
@@ -1261,6 +1267,9 @@ class AnkiaWidget(QWidget):
     # Recomendaciones IA
     # ─────────────────────────────────────────────
     def open_recommendations_view(self):
+        if not self._recs_created:
+            self.setup_recommendations_view()
+            self._recs_created = True
         if not self.active_context:
             self.show_toast("Selecciona un mazo primero")
             return
@@ -1274,7 +1283,7 @@ class AnkiaWidget(QWidget):
         self._clear_layout(self.rec_layout)
         self.btn_save_recs.hide()
         self.pending_recommendations = []
-        self.stacked_widget.setCurrentIndex(3)
+        self.stacked_widget.setCurrentWidget(self.recs_page)
 
     def start_generate_recommendations(self):
         if not self.active_context:
@@ -1359,10 +1368,13 @@ class AnkiaWidget(QWidget):
         msg = f"Guardadas {saved} tarjetas"
         if skipped:
             msg += f" ({skipped} ya existían)"
+        if not self._deck_created:
+            self.setup_deck_view()
+            self._deck_created = True
         self.show_toast(msg)
         self.refresh_contexts()
         self.render_deck_view()
-        self.stacked_widget.setCurrentIndex(2)
+        self.stacked_widget.setCurrentWidget(self.deck_page)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
