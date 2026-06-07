@@ -9,10 +9,10 @@
         "target_lang": "Español",
         "level": "C1"
     },
-    "Cocina Ingles-Español": {
+    "Cuerpo Ingles-Español": {
         "source_lang": "Inglés",
         "target_lang": "Español",
-        "level": "B2",
-        "description": "Vocabulario estricto de cocina"
+        "level": "A1",
+        "description": "Partes del cuerpo"
     }
 }

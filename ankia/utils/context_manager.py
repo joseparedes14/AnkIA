@@ -9,7 +9,7 @@ import re
 import json
 
 # Ruta base de los decks (relativa al directorio del proyecto)
-DECKS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "decks")
+DECKS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "decks")
 METADATA_FILE = os.path.join(DECKS_DIR, "metadata.json")
 
 def _ensure_decks_dir():

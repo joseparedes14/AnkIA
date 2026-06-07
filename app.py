@@ -5,7 +5,7 @@ con traducción automática vía Ollama (IA local).
 """
 
 import streamlit as st
-from utils import anki_manager, context_manager, ollama_client
+from ankia.utils import anki_manager, context_manager, ollama_client
 
 
 # ─────────────────────────────────────────────

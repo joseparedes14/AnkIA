@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ankia"
+version = "0.1.0"
+description = "AI-powered vocabulary flashcard tool with local LLM integration"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.28",
+    "requests>=2.31",
+    "PySide6>=6.5",
+]
+
+[project.urls]
+Repository = "https://github.com/anomalyco/ankia"
+
+[tool.setuptools.packages.find]
+include = ["ankia*"]

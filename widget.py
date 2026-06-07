@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QFileDialog, QCheckBox
 )
 
-from utils import anki_manager, context_manager, ollama_client
+from ankia.utils import anki_manager, context_manager, ollama_client
 
 # ─────────────────────────────────────────────
 # Estilos — Distribución premium, acento ámbar
