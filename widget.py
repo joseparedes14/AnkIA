@@ -362,19 +362,21 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 class TranslationWorker(QThread):
     finished_signal = Signal(dict)
 
-    def __init__(self, word, source_lang, target_lang, context_name):
+    def __init__(self, word, source_lang, target_lang, context_name, context_description=""):
         super().__init__()
         self.word = word
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.context_name = context_name
+        self.context_description = context_description
 
     def run(self):
         result = ollama_client.translate_word(
             word=self.word,
             source_lang=self.source_lang,
             target_lang=self.target_lang,
-            context_name=self.context_name
+            context_name=self.context_name,
+            context_description=self.context_description,
         )
         self.finished_signal.emit(result)
 
@@ -382,7 +384,7 @@ class TranslationWorker(QThread):
 class RecommendationWorker(QThread):
     finished_signal = Signal(dict)
 
-    def __init__(self, amount, existing_words, context_name, level, source_lang, target_lang):
+    def __init__(self, amount, existing_words, context_name, level, source_lang, target_lang, context_description=""):
         super().__init__()
         self.amount = amount
         self.existing_words = existing_words
@@ -390,6 +392,7 @@ class RecommendationWorker(QThread):
         self.level = level
         self.source_lang = source_lang
         self.target_lang = target_lang
+        self.context_description = context_description
 
     def run(self):
         result = ollama_client.generate_recommendations(
@@ -399,6 +402,7 @@ class RecommendationWorker(QThread):
             level=self.level,
             source_lang=self.source_lang,
             target_lang=self.target_lang,
+            context_description=self.context_description,
         )
         self.finished_signal.emit(result)
 
@@ -696,6 +700,18 @@ class AnkiaWidget(QWidget):
         self.combo_level.setCurrentText("B2")
         v3.addWidget(self.combo_level)
         layout.addLayout(v3)
+        layout.addSpacing(20)
+
+        # Descripción (opcional)
+        v_desc = QVBoxLayout()
+        v_desc.setSpacing(6)
+        lbl_desc = QLabel("DESCRIPCIÓN (OPCIONAL)")
+        lbl_desc.setObjectName("FieldLabel")
+        v_desc.addWidget(lbl_desc)
+        self.new_ctx_description = QLineEdit()
+        self.new_ctx_description.setPlaceholderText("Ej: vocabulario de cocina")
+        v_desc.addWidget(self.new_ctx_description)
+        layout.addLayout(v_desc)
         layout.addSpacing(24)
 
         # Crear
@@ -940,9 +956,11 @@ class AnkiaWidget(QWidget):
                 self.combo_source.currentText(),
                 self.combo_target.currentText(),
                 self.combo_level.currentText(),
+                self.new_ctx_description.text().strip(),
             )
             self.refresh_contexts()
             self.new_ctx_name.clear()
+            self.new_ctx_description.clear()
             self.stacked_widget.setCurrentIndex(0)
             self.show_toast(f"Mazo '{name}' creado")
         except Exception as e:
@@ -986,7 +1004,8 @@ class AnkiaWidget(QWidget):
         self.input_field.setEnabled(False)
         self.input_field.setText("… procesando con IA")
 
-        self.worker = TranslationWorker(word, source_lang, target_lang, ctx_name)
+        ctx_description = ctx_meta.get("description", "")
+        self.worker = TranslationWorker(word, source_lang, target_lang, ctx_name, ctx_description)
         self.worker.finished_signal.connect(self.on_translation_finished)
         self.worker.start()
 
@@ -1170,11 +1189,15 @@ class AnkiaWidget(QWidget):
         deck_path = context_manager.get_deck_path(self.active_context)
         ctx_meta = context_manager.get_context_metadata(self.active_context)
 
+        description = ctx_meta.get("description", "")
+        desc_text = f"    //    📌 {description}" if description else ""
+
         self.deck_title_label.setText("MAZO")
         self.deck_meta_label.setText(
             f"{self.active_context}    //    "
             f"{ctx_meta.get('source_lang', '?')} → {ctx_meta.get('target_lang', '?')}    //    "
             f"NIVEL {ctx_meta.get('level', 'B2')}"
+            f"{desc_text}"
         )
 
         self._clear_layout(self.deck_cards_layout)
@@ -1280,6 +1303,7 @@ class AnkiaWidget(QWidget):
             level=ctx_meta.get("level", "B2"),
             source_lang=ctx_meta.get("source_lang", "Español"),
             target_lang=ctx_meta.get("target_lang", "Alemán"),
+            context_description=ctx_meta.get("description", ""),
         )
         self.rec_worker.finished_signal.connect(self.on_recommendations_finished)
         self.rec_worker.start()

@@ -67,6 +67,7 @@ def translate_word(
     target_lang: str,
     context_name: str,
     model: str = DEFAULT_MODEL,
+    context_description: str = "",
 ) -> dict:
     """Traduce una palabra usando Ollama y genera un ejemplo de uso.
 
@@ -76,6 +77,7 @@ def translate_word(
         target_lang: Idioma destino (ej: 'Alemán')
         context_name: Nombre del contexto para dar background a la IA
         model: Modelo de Ollama a usar
+        context_description: Descripción opcional adicional del contexto
 
     Returns:
         {
@@ -86,15 +88,20 @@ def translate_word(
             "error": str | None
         }
     """
+    context_extra = ""
+    if context_description:
+        context_extra = f" Descripción adicional: '{context_description}'."
+
     system_prompt = (
         f"Eres un experto lingüista y traductor entre {source_lang} y {target_lang}. "
-        f"Estás traduciendo para un contexto o temática específica: '{context_name}'. "
-        f"Ten muy en cuenta este contexto ('{context_name}') para elegir la traducción y el ejemplo más apropiados.\n\n"
+        f"Estás traduciendo para un contexto o temática específica: '{context_name}'."
+        f"{context_extra} "
+        f"Ten muy en cuenta este contexto para elegir la traducción y el ejemplo más apropiados.\n\n"
         f"INSTRUCCIONES ESTRICTAS DE FORMATO:\n"
         f"Dependiendo del tipo de palabra, debes formatear los valores del JSON EXACTAMENTE así:\n\n"
         f"REGLA 1 - SI ES UN SUSTANTIVO:\n"
         f"- \"front\": La palabra en {source_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
-        f"- \"translation\": Estructura estricta: (artículo) traducción. NO AÑADAS género ni plural. Ej: '(die) Vorstellung' o '(the) car'\n"
+        f"- \"translation\": Estructura estricta: (artículo) traducción. El ARTÍCULO debe estar SIEMPRE en {target_lang}, NUNCA en {source_lang}. NO AÑADAS género ni plural. Ej: '(la) mesa' (correcto), '(the) mesa' (INCORRECTO porque el artículo está en Inglés en vez de Español).\n"
         f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
         f"REGLA 2 - SI ES CUALQUIER OTRA COSA (Verbos, Adjetivos, etc.):\n"
         f"- \"front\": La palabra en {source_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"
@@ -189,6 +196,7 @@ def generate_recommendations(
     source_lang: str,
     target_lang: str,
     model: str = DEFAULT_MODEL,
+    context_description: str = "",
 ) -> dict:
     """Genera recomendaciones de palabras nuevas usando Ollama.
 
@@ -200,6 +208,7 @@ def generate_recommendations(
         source_lang: Idioma de origen.
         target_lang: Idioma de destino.
         model: Modelo de Ollama.
+        context_description: Descripción opcional adicional del contexto.
 
     Returns:
         {
@@ -210,17 +219,22 @@ def generate_recommendations(
     """
     existing_str = ", ".join(existing_words)
 
+    context_extra = ""
+    if context_description:
+        context_extra = f" Descripción adicional del contexto: '{context_description}'."
+
     system_prompt = (
         f"Eres un experto lingüista y profesor de vocabulario. "
         f"Tu tarea es recomendar exactamente {amount} palabras NUEVAS para un estudiante de nivel {level} "
-        f"en la temática o contexto '{context_name}'. "
+        f"en la temática o contexto '{context_name}'."
+        f"{context_extra} "
         f"Los idiomas son: origen {source_lang}, destino {target_lang}.\n\n"
         f"RESTRICCIÓN CRÍTICA: NO puedes sugerir ninguna de estas palabras, ya existen en el mazo: [{existing_str}].\n\n"
         f"INSTRUCCIONES ESTRICTAS DE FORMATO:\n"
         f"Dependiendo del tipo de palabra, debes formatear los valores del JSON EXACTAMENTE así:\n\n"
         f"REGLA 1 - SI ES UN SUSTANTIVO:\n"
         f"- \"front\": La palabra en {source_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
-        f"- \"translation\": Estructura estricta: (artículo) traducción. NO AÑADAS género ni plural. Ej: '(die) Vorstellung' o '(the) car'\n"
+        f"- \"translation\": Estructura estricta: (artículo) traducción. El ARTÍCULO debe estar SIEMPRE en {target_lang}, NUNCA en {source_lang}. NO AÑADAS género ni plural. Ej: '(la) mesa' (correcto), '(the) mesa' (INCORRECTO porque el artículo está en Inglés en vez de Español).\n"
         f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
         f"REGLA 2 - SI ES CUALQUIER OTRA COSA (Verbos, Adjetivos, etc.):\n"
         f"- \"front\": La palabra en {source_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"

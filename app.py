@@ -466,6 +466,13 @@ with st.sidebar:
         placeholder="Ej: Adjetivos C1 Ingles-Aleman",
         key="new_context_input",
     )
+
+    new_context_description = st.text_area(
+        "Descripción (opcional)",
+        placeholder="Ej: vocabulario de cocina, para mejorar recomendaciones",
+        key="new_context_description",
+        height=68,
+    )
     
     col_lang1, col_lang2 = st.columns(2)
     langs = ["Español", "Inglés", "Alemán", "Francés", "Italiano", "Portugués", "Japonés", "Chino", "Coreano", "Ruso", "Árabe"]
@@ -480,7 +487,7 @@ with st.sidebar:
     if st.button("Crear contexto", key="create_context", use_container_width=True, type="primary"):
         if new_context_name.strip():
             try:
-                result = context_manager.create_context(new_context_name, new_source_lang, new_target_lang, new_level)
+                result = context_manager.create_context(new_context_name, new_source_lang, new_target_lang, new_level, new_context_description.strip())
                 st.session_state.active_context = result["name"]
                 st.toast(f"✅ Contexto '{result['name']}' creado", icon="📚")
                 st.rerun()
@@ -513,10 +520,13 @@ if st.session_state.active_context:
     level = ctx_meta.get("level", "B2")
 
     # Panel de contexto activo
+    description = ctx_meta.get("description", "")
+    desc_html = f'<div style="font-size: 0.8em; color: var(--text-secondary); margin-top: 0.3rem;">📌 {description}</div>' if description else ""
     st.markdown(
         f'<div class="glass-panel">'
         f'  <h3>📝 Contexto Activo — <span style="color: #a78bfa;">{st.session_state.active_context}</span> '
         f'  <span style="font-size: 0.8em; color: var(--text-secondary);">({source_lang} → {target_lang} | {level})</span></h3>'
+        f'  {desc_html}'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -544,6 +554,7 @@ if st.session_state.active_context:
                         source_lang=source_lang,
                         target_lang=target_lang,
                         context_name=st.session_state.active_context,
+                        context_description=ctx_meta.get("description", ""),
                     )
                     
                     if result["success"]:
@@ -577,6 +588,7 @@ if st.session_state.active_context:
                         level=level,
                         source_lang=source_lang,
                         target_lang=target_lang,
+                        context_description=ctx_meta.get("description", ""),
                     )
                     
                     if res["success"]:

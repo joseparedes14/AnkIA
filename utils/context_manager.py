@@ -52,7 +52,7 @@ def list_contexts() -> list[dict]:
     """Lista todos los contextos disponibles.
 
     Returns:
-        Lista de dicts con {name, path, card_count, source_lang, target_lang}
+        Lista de dicts con {name, path, card_count, source_lang, target_lang, level, description}
     """
     _ensure_decks_dir()
     contexts = []
@@ -72,11 +72,12 @@ def list_contexts() -> list[dict]:
                 "source_lang": ctx_meta.get("source_lang", "Desconocido"),
                 "target_lang": ctx_meta.get("target_lang", "Desconocido"),
                 "level": ctx_meta.get("level", "B2"),
+                "description": ctx_meta.get("description", ""),
             })
 
     return contexts
 
-def create_context(name: str, source_lang: str, target_lang: str, level: str = "B2") -> dict:
+def create_context(name: str, source_lang: str, target_lang: str, level: str = "B2", description: str = "") -> dict:
     """Crea un nuevo contexto (archivo .txt vacío y guarda sus idiomas y nivel).
 
     Args:
@@ -84,9 +85,10 @@ def create_context(name: str, source_lang: str, target_lang: str, level: str = "
         source_lang: Idioma de origen
         target_lang: Idioma de destino
         level: Nivel (ej: 'B2')
+        description: Descripción opcional para contextualizar las recomendaciones (ej: 'vocabulario de cocina')
 
     Returns:
-        Dict con {name, path, source_lang, target_lang, level} del contexto creado
+        Dict con {name, path, source_lang, target_lang, level, description} del contexto creado
 
     Raises:
         ValueError: Si el nombre es vacío o el contexto ya existe
@@ -111,11 +113,12 @@ def create_context(name: str, source_lang: str, target_lang: str, level: str = "
     metadata[safe_name] = {
         "source_lang": source_lang,
         "target_lang": target_lang,
-        "level": level
+        "level": level,
+        "description": description,
     }
     _save_metadata(metadata)
 
-    return {"name": safe_name, "path": path, "source_lang": source_lang, "target_lang": target_lang, "level": level}
+    return {"name": safe_name, "path": path, "source_lang": source_lang, "target_lang": target_lang, "level": level, "description": description}
 
 def delete_context(name: str) -> bool:
     """Elimina un contexto (borra el archivo .txt y su metadata).
@@ -164,10 +167,11 @@ def get_context_metadata(name: str) -> dict:
         name: Nombre del contexto
         
     Returns:
-        Dict con {"source_lang": "...", "target_lang": "..."}
+        Dict con {"source_lang": "...", "target_lang": "...", "level": "...", "description": "..."}
     """
     metadata = _load_metadata()
-    return metadata.get(name, {"source_lang": "Español", "target_lang": "Alemán", "level": "B2"})
+    default = {"source_lang": "Español", "target_lang": "Alemán", "level": "B2", "description": ""}
+    return metadata.get(name, default)
 
 def _count_cards(path: str) -> int:
     """Cuenta las tarjetas válidas en un archivo.
