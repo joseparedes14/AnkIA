@@ -1,0 +1,7 @@
+zuziehen;mudarse <br><br> <i>Voy a mudarme a un nuevo apartamento el próximo mes.</i>
+begehen;cometer <br><br> <i>El ladrón decidió cometer el robo durante la noche.</i>
+treiben;impulsar <br><br> <i>El entrenador impulsa a los atletas a dar lo mejor de sí.</i>
+Verletzung;(la) lesión <br><br> <i>Sufrió una lesión durante el partido.</i>
+Stipendium / Studienbeihilfe;(la) beca <br><br> <i>Ella recibió una beca para estudiar en Alemania.</i>
+Einfluss;(la) influencia <br><br> <i>Su discurso tuvo una gran influencia en la audiencia.</i>
+Niederlage;(la) derrota <br><br> <i>El equipo sufrió una derrota inesperada en el último partido.</i>

@@ -362,13 +362,14 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 class TranslationWorker(QThread):
     finished_signal = Signal(dict)
 
-    def __init__(self, word, source_lang, target_lang, context_name, context_description=""):
+    def __init__(self, word, source_lang, target_lang, context_name, context_description="", mode="direct"):
         super().__init__()
         self.word = word
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.context_name = context_name
         self.context_description = context_description
+        self.mode = mode
 
     def run(self):
         result = ollama_client.translate_word(
@@ -377,6 +378,7 @@ class TranslationWorker(QThread):
             target_lang=self.target_lang,
             context_name=self.context_name,
             context_description=self.context_description,
+            mode=self.mode,
         )
         self.finished_signal.emit(result)
 
@@ -426,6 +428,7 @@ class AnkiaWidget(QWidget):
         self.expanded_width = 380
         self.handle_width = 30
         self.active_context = None
+        self.translation_mode = "direct"
         self.pending_recommendations = []
         self._collapsed = False
         self._dragging = False
@@ -580,20 +583,19 @@ class AnkiaWidget(QWidget):
         close_btn.clicked.connect(self.close_app)
         brand_wrap.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
         layout.addLayout(brand_wrap)
-        layout.addSpacing(16)
+        layout.addSpacing(10)
         layout.addWidget(_accent_line())
-        layout.addSpacing(36)
+        layout.addSpacing(20)
 
         # MAZOS
         section = QLabel("MAZOS")
         section.setObjectName("SectionLabel")
         layout.addWidget(section)
-        layout.addSpacing(14)
+        layout.addSpacing(10)
         self.list_contexts = QListWidget()
-        self.list_contexts.itemSelectionChanged.connect(self.on_context_selected)
         self.list_contexts.itemDoubleClicked.connect(self.open_deck_detail)
         layout.addWidget(self.list_contexts)
-        layout.addSpacing(16)
+        layout.addSpacing(12)
 
         # Acción
         actions = QHBoxLayout()
@@ -605,17 +607,6 @@ class AnkiaWidget(QWidget):
         actions.addWidget(btn_new)
         actions.addStretch()
         layout.addLayout(actions)
-        layout.addSpacing(36)
-
-        # AÑADIR
-        section_add = QLabel("AÑADIR")
-        section_add.setObjectName("SectionLabel")
-        layout.addWidget(section_add)
-        layout.addSpacing(14)
-        self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Escribe y pulsa Enter")
-        self.input_field.returnPressed.connect(self.on_enter_pressed)
-        layout.addWidget(self.input_field)
 
         layout.addStretch()
         self.stacked_widget.addWidget(page)
@@ -764,13 +755,41 @@ class AnkiaWidget(QWidget):
         self.btn_open_recs.clicked.connect(self.open_recommendations_view)
         actions.addWidget(self.btn_open_recs)
         layout.addLayout(actions)
-        layout.addSpacing(28)
+        layout.addSpacing(24)
+
+        # AÑADIR
+        section_add = QLabel("AÑADIR")
+        section_add.setObjectName("SectionLabel")
+        layout.addWidget(section_add)
+        layout.addSpacing(10)
+
+        mode_row = QHBoxLayout()
+        mode_row.setSpacing(6)
+        self.btn_mode_direct = QPushButton("DIRECTA")
+        self.btn_mode_direct.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_direct.clicked.connect(lambda: self.set_translation_mode("direct"))
+        self.btn_mode_inverse = QPushButton("INVERSA")
+        self.btn_mode_inverse.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_inverse.clicked.connect(lambda: self.set_translation_mode("inverse"))
+        mode_row.addWidget(self.btn_mode_direct)
+        mode_row.addWidget(self.btn_mode_inverse)
+        mode_row.addStretch()
+        layout.addLayout(mode_row)
+        layout.addSpacing(8)
+
+        self.deck_input_field = QLineEdit()
+        self.deck_input_field.setPlaceholderText("Escribe una palabra y pulsa Enter")
+        self.deck_input_field.returnPressed.connect(self.on_enter_pressed)
+        layout.addWidget(self.deck_input_field)
+        layout.addSpacing(12)
+        layout.addWidget(_accent_line(dim=True))
+        layout.addSpacing(20)
 
         # TARJETAS
         section = QLabel("TARJETAS")
         section.setObjectName("SectionLabel")
         layout.addWidget(section)
-        layout.addSpacing(12)
+        layout.addSpacing(10)
 
         # Scroll
         self.deck_cards_scroll = QScrollArea()
@@ -786,6 +805,7 @@ class AnkiaWidget(QWidget):
 
         self.stacked_widget.addWidget(page)
         self.deck_page = page
+        self.set_translation_mode("direct")
 
     def setup_recommendations_view(self):
         page = QWidget()
@@ -936,12 +956,6 @@ class AnkiaWidget(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, ctx['name'])
             self.list_contexts.addItem(item)
 
-    def on_context_selected(self):
-        items = self.list_contexts.selectedItems()
-        if items:
-            ctx_name = items[0].data(Qt.ItemDataRole.UserRole)
-            self.input_field.setPlaceholderText(f"Añadir a '{ctx_name}'")
-
     def create_context(self):
         name = self.new_ctx_name.text().strip()
         if not name:
@@ -984,39 +998,34 @@ class AnkiaWidget(QWidget):
             self.show_toast("Mazo eliminado")
 
     def on_enter_pressed(self):
-        word = self.input_field.text().strip()
+        word = self.deck_input_field.text().strip()
         if not word:
             return
 
-        items = self.list_contexts.selectedItems()
-        if not items:
-            self.show_toast("Selecciona un mazo primero")
+        if not self.active_context:
+            self.show_toast("Abre un mazo primero")
             return
 
-        ctx_name = items[0].data(Qt.ItemDataRole.UserRole)
-        ctx_meta = context_manager.get_context_metadata(ctx_name)
+        ctx_meta = context_manager.get_context_metadata(self.active_context)
         source_lang = ctx_meta.get("source_lang", "Español")
         target_lang = ctx_meta.get("target_lang", "Alemán")
 
-        self.input_field.setEnabled(False)
-        self.input_field.setText("… procesando con IA")
+        self.deck_input_field.setEnabled(False)
+        self.deck_input_field.setText("… procesando con IA")
 
         ctx_description = ctx_meta.get("description", "")
-        self.worker = TranslationWorker(word, source_lang, target_lang, ctx_name, ctx_description)
+        self.worker = TranslationWorker(word, source_lang, target_lang, self.active_context, ctx_description, self.translation_mode)
         self.worker.finished_signal.connect(self.on_translation_finished)
         self.worker.start()
 
     def on_translation_finished(self, result):
-        self.input_field.setEnabled(True)
-        self.input_field.clear()
-        self.input_field.setFocus()
+        self.deck_input_field.setEnabled(True)
+        self.deck_input_field.clear()
+        self.deck_input_field.setFocus()
 
         if result["success"]:
-            items = self.list_contexts.selectedItems()
-            if items:
-                ctx_name = items[0].data(Qt.ItemDataRole.UserRole)
-                deck_path = context_manager.get_deck_path(ctx_name)
-
+            if self.active_context:
+                deck_path = context_manager.get_deck_path(self.active_context)
                 if anki_manager.card_exists(deck_path, result["front"]):
                     self.show_toast("La tarjeta ya existe")
                 else:
@@ -1028,6 +1037,7 @@ class AnkiaWidget(QWidget):
                     )
                     self.show_toast(f"Añadido: {result['front']}")
                     self.refresh_contexts()
+                    self.render_deck_view()
         else:
             self.show_toast("Error de IA")
 
@@ -1040,6 +1050,16 @@ class AnkiaWidget(QWidget):
         self.toast_label.move(x, y)
         self.toast_label.show()
         QTimer.singleShot(3000, self.toast_label.hide)
+
+    def set_translation_mode(self, mode):
+        self.translation_mode = mode
+        if mode == "direct":
+            self.btn_mode_direct.setObjectName("PrimaryButton")
+            self.btn_mode_inverse.setObjectName("")
+        else:
+            self.btn_mode_direct.setObjectName("")
+            self.btn_mode_inverse.setObjectName("PrimaryButton")
+        self.main_panel.setStyleSheet(GLOBAL_STYLES)
 
     # ─────────────────────────────────────────────
     # Vista detalle del mazo (tarjetas, descargar, IA)

@@ -68,6 +68,7 @@ def translate_word(
     context_name: str,
     model: str = DEFAULT_MODEL,
     context_description: str = "",
+    mode: str = "direct",
 ) -> dict:
     """Traduce una palabra usando Ollama y genera un ejemplo de uso.
 
@@ -78,6 +79,7 @@ def translate_word(
         context_name: Nombre del contexto para dar background a la IA
         model: Modelo de Ollama a usar
         context_description: Descripción opcional adicional del contexto
+        mode: "direct" (source→target) o "inverse" (target→source)
 
     Returns:
         {
@@ -88,6 +90,9 @@ def translate_word(
             "error": str | None
         }
     """
+    if mode == "inverse":
+        source_lang, target_lang = target_lang, source_lang
+
     context_extra = ""
     if context_description:
         context_extra = f" Descripción adicional: '{context_description}'."

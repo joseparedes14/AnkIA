@@ -1,0 +1,27 @@
+Dach;(el) techo <br><br> <i>El gato está bajo el techo.</i>
+unterschiedlich;diferente <br><br> <i>Los resultados fueron diferentes en cada experimento.</i>
+Streit / Auseinandersetzung;(la) disputa <br><br> <i>Los vecinos tuvieron una disputa por el ruido.</i>
+Hausputz / Hausreinigung;(la) limpieza de la casa <br><br> <i>El sábado hice la limpieza de la casa y todo quedó reluciente.</i>
+kostenlos;gratis <br><br> <i>La entrada al museo es kostenlos para todos los visitantes.</i>
+Dienstleistung;(el) servicio <br><br> <i>La empresa brinda un excelente servicio a sus clientes.</i>
+Bundesländern;(los) estados federales <br><br> <i>Alemania está compuesta por los 16 estados federales.</i>
+Verbraucherzentrale;(la) central de consumidores <br><br> <i>Puedes acudir a la central de consumidores para recibir asesoramiento.</i>
+Beratungsstelle;(la) oficina de asesoría <br><br> <i>Puedes acudir a la oficina de asesoría para resolver tus dudas.</i>
+Konsum;(el) consumo <br><br> <i>El consumo de energía ha aumentado este año.</i>
+verspreche;prometer <br><br> <i>Yo le prometo llegar a tiempo.</i>
+Versicherung;(el) seguro <br><br> <i>Necesito contratar un seguro para mi coche.</i>
+Stromanbieter;(el) proveedor de electricidad <br><br> <i>Estoy buscando un nuevo proveedor de electricidad.</i>
+erheben;levantar <br><br> <i>El trabajador debe levantar la caja con cuidado.</i>
+Kaufhäusern;(los) grandes almacenes <br><br> <i>Compré regalos en los grandes almacenes del centro.</i>
+angestellt;empleado <br><br> <i>Juan está empleado en la empresa desde 2020.</i>
+Konkurrenz / Wettbewerb;(la) competencia <br><br> <i>La empresa enfrenta una fuerte competencia en el mercado.</i>
+unabhängig;independiente <br><br> <i>Ella es una persona independiente.</i>
+anbieten;ofrecer <br><br> <i>El vendedor decidió ofrecer un descuento a los clientes.</i>
+Verkehrsmittel;(el) medio de transporte <br><br> <i>El coche es un medio de transporte muy común.</i>
+wirklich;realmente <br><br> <i>¿Lo haces realmente por amor?</i>
+möglich;posible <br><br> <i>Es una solución posible.</i>
+Bewerbung;(la) solicitud <br><br> <i>Envíe su solicitud antes del viernes.</i>
+mittlerweile;entre tanto <br><br> <i>Entre tanto, la situación ha mejorado.</i>
+Vorstand;(el) consejo de administración <br><br> <i>El consejo de administración aprobó el nuevo presupuesto.</i>
+stattfinden;tener lugar <br><br> <i>La reunión va a tener lugar mañana.</i>
+playa;(der) Strand <br><br> <i>Wir gehen am Strand spazieren.</i>
