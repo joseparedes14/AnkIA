@@ -21,6 +21,12 @@ AnkIA is a desktop overlay widget that helps you build Anki-compatible vocabular
 
 ---
 
+<img width="380" height="985" alt="image" src="https://github.com/user-attachments/assets/91e28128-5317-4972-a4e2-2396c4c160ca" />
+
+
+<img width="340" height="815" alt="image" src="https://github.com/user-attachments/assets/d804eb9c-f839-449f-8d8c-df3c0f7f4e41" />
+
+
 ## Quick Start
 
 ### 1. Install Ollama
