@@ -90,9 +90,6 @@ def translate_word(
             "error": str | None
         }
     """
-    if mode == "inverse":
-        source_lang, target_lang = target_lang, source_lang
-
     context_extra = ""
     if context_description:
         context_extra = f" Descripción adicional: '{context_description}'."
@@ -151,11 +148,17 @@ def translate_word(
         result = _parse_ollama_response(content)
 
         if result:
+            if mode == "inverse":
+                front = result.get("translation", "")
+                translation = result.get("front", word)
+            else:
+                front = result.get("front", word)
+                translation = result.get("translation", "")
             return {
                 "success": True,
-                "translation": result.get("translation", ""),
+                "translation": translation,
                 "example": result.get("example", ""),
-                "front": result.get("front", word),
+                "front": front,
                 "error": None,
             }
         else:
@@ -202,6 +205,7 @@ def generate_recommendations(
     target_lang: str,
     model: str = DEFAULT_MODEL,
     context_description: str = "",
+    mode: str = "direct",
 ) -> dict:
     """Genera recomendaciones de palabras nuevas usando Ollama.
 
@@ -281,9 +285,20 @@ def generate_recommendations(
         result = _parse_ollama_response(content)
         
         if result is not None and isinstance(result, list):
-            return {"success": True, "recommendations": result, "error": None}
+            recs = result
         elif result is not None and isinstance(result, dict) and "recommendations" in result:
-             return {"success": True, "recommendations": result["recommendations"], "error": None}
+            recs = result["recommendations"]
+        else:
+            recs = None
+
+        if recs is not None:
+            if mode == "inverse":
+                for rec in recs:
+                    orig_front = rec.get("front", "")
+                    orig_translation = rec.get("translation", "")
+                    rec["front"] = orig_translation
+                    rec["translation"] = orig_front
+            return {"success": True, "recommendations": recs, "error": None}
         else:
             return {"success": False, "recommendations": [], "error": f"No se pudo parsear como lista: {content[:200]}"}
 

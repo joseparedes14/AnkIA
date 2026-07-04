@@ -386,7 +386,7 @@ class TranslationWorker(QThread):
 class RecommendationWorker(QThread):
     finished_signal = Signal(dict)
 
-    def __init__(self, amount, existing_words, context_name, level, source_lang, target_lang, context_description=""):
+    def __init__(self, amount, existing_words, context_name, level, source_lang, target_lang, context_description="", mode="direct"):
         super().__init__()
         self.amount = amount
         self.existing_words = existing_words
@@ -395,6 +395,7 @@ class RecommendationWorker(QThread):
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.context_description = context_description
+        self.mode = mode
 
     def run(self):
         result = ollama_client.generate_recommendations(
@@ -405,6 +406,7 @@ class RecommendationWorker(QThread):
             source_lang=self.source_lang,
             target_lang=self.target_lang,
             context_description=self.context_description,
+            mode=self.mode,
         )
         self.finished_signal.emit(result)
 
@@ -1333,6 +1335,7 @@ class AnkiaWidget(QWidget):
             source_lang=ctx_meta.get("source_lang", "Español"),
             target_lang=ctx_meta.get("target_lang", "Alemán"),
             context_description=ctx_meta.get("description", ""),
+            mode=self.translation_mode,
         )
         self.rec_worker.finished_signal.connect(self.on_recommendations_finished)
         self.rec_worker.start()
