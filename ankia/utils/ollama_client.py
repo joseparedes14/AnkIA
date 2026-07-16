@@ -94,6 +94,13 @@ def translate_word(
     if context_description:
         context_extra = f" Descripción adicional: '{context_description}'."
 
+    if mode == "inverse":
+        front_lang = target_lang
+        reverse_lang = source_lang
+    else:
+        front_lang = source_lang
+        reverse_lang = target_lang
+
     system_prompt = (
         f"Eres un experto lingüista y traductor entre {source_lang} y {target_lang}. "
         f"Estás traduciendo para un contexto o temática específica: '{context_name}'."
@@ -102,13 +109,13 @@ def translate_word(
         f"INSTRUCCIONES ESTRICTAS DE FORMATO:\n"
         f"Dependiendo del tipo de palabra, debes formatear los valores del JSON EXACTAMENTE así:\n\n"
         f"REGLA 1 - SI ES UN SUSTANTIVO:\n"
-        f"- \"front\": La palabra en {source_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
-        f"- \"translation\": Estructura estricta: (artículo) traducción. El ARTÍCULO debe estar SIEMPRE en {target_lang}, NUNCA en {source_lang}. NO AÑADAS género ni plural. Ej: '(la) mesa' (correcto), '(the) mesa' (INCORRECTO porque el artículo está en Inglés en vez de Español).\n"
-        f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
+        f"- \"front\": La palabra en {front_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
+        f"- \"translation\": Estructura estricta: (artículo) traducción. El ARTÍCULO debe estar SIEMPRE en {reverse_lang}, NUNCA en {front_lang}. El artículo solo va en el reverso (translation), nunca en el anverso (front). NO AÑADAS género ni plural. Ej: '(la) mesa' (correcto).\n"
+        f"- \"example\": Frase de ejemplo en {reverse_lang}.\n\n"
         f"REGLA 2 - SI ES CUALQUIER OTRA COSA (Verbos, Adjetivos, etc.):\n"
-        f"- \"front\": La palabra en {source_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"
-        f"- \"translation\": Solo la traducción en {target_lang}. Ej: 'auflösen'\n"
-        f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
+        f"- \"front\": La palabra en {front_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"
+        f"- \"translation\": Solo la traducción en {reverse_lang}. Ej: 'auflösen'\n"
+        f"- \"example\": Frase de ejemplo en {reverse_lang}.\n\n"
         f"Responde ÚNICAMENTE con JSON válido, sin texto adicional ni markdown.\n"
         f"Formato: {{\"front\": \"...\", \"translation\": \"...\", \"example\": \"...\"}}"
     )
@@ -148,12 +155,8 @@ def translate_word(
         result = _parse_ollama_response(content)
 
         if result:
-            if mode == "inverse":
-                front = result.get("translation", "")
-                translation = result.get("front", word)
-            else:
-                front = result.get("front", word)
-                translation = result.get("translation", "")
+            front = result.get("front", word)
+            translation = result.get("translation", "")
             return {
                 "success": True,
                 "translation": translation,
@@ -232,6 +235,13 @@ def generate_recommendations(
     if context_description:
         context_extra = f" Descripción adicional del contexto: '{context_description}'."
 
+    if mode == "inverse":
+        front_lang = target_lang
+        reverse_lang = source_lang
+    else:
+        front_lang = source_lang
+        reverse_lang = target_lang
+
     system_prompt = (
         f"Eres un experto lingüista y profesor de vocabulario. "
         f"Tu tarea es recomendar exactamente {amount} palabras NUEVAS para un estudiante de nivel {level} "
@@ -242,13 +252,13 @@ def generate_recommendations(
         f"INSTRUCCIONES ESTRICTAS DE FORMATO:\n"
         f"Dependiendo del tipo de palabra, debes formatear los valores del JSON EXACTAMENTE así:\n\n"
         f"REGLA 1 - SI ES UN SUSTANTIVO:\n"
-        f"- \"front\": La palabra en {source_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
-        f"- \"translation\": Estructura estricta: (artículo) traducción. El ARTÍCULO debe estar SIEMPRE en {target_lang}, NUNCA en {source_lang}. NO AÑADAS género ni plural. Ej: '(la) mesa' (correcto), '(the) mesa' (INCORRECTO porque el artículo está en Inglés en vez de Español).\n"
-        f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
+        f"- \"front\": La palabra en {front_lang} (puedes añadir sinónimos con '/'). ¡NO añadas el tipo de palabra ni etiquetas como '(noun)'! Ej: 'idea / concepto'\n"
+        f"- \"translation\": Estructura estricta: (artículo) traducción. El ARTÍCULO debe estar SIEMPRE en {reverse_lang}, NUNCA en {front_lang}. El artículo solo va en el reverso (translation), nunca en el anverso (front). NO AÑADAS género ni plural. Ej: '(la) mesa' (correcto).\n"
+        f"- \"example\": Frase de ejemplo en {reverse_lang}.\n\n"
         f"REGLA 2 - SI ES CUALQUIER OTRA COSA (Verbos, Adjetivos, etc.):\n"
-        f"- \"front\": La palabra en {source_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"
-        f"- \"translation\": Solo la traducción en {target_lang}. Ej: 'auflösen'\n"
-        f"- \"example\": Frase de ejemplo en {target_lang}.\n\n"
+        f"- \"front\": La palabra en {front_lang}. ¡NO añadas etiquetas! Ej: 'disolver'\n"
+        f"- \"translation\": Solo la traducción en {reverse_lang}. Ej: 'auflösen'\n"
+        f"- \"example\": Frase de ejemplo en {reverse_lang}.\n\n"
         f"Responde ÚNICAMENTE con un JSON válido que sea una lista (array) de {amount} objetos con estas claves, sin texto adicional ni markdown.\n"
         f"Formato esperado:\n"
         f"[\n"
@@ -292,12 +302,6 @@ def generate_recommendations(
             recs = None
 
         if recs is not None:
-            if mode == "inverse":
-                for rec in recs:
-                    orig_front = rec.get("front", "")
-                    orig_translation = rec.get("translation", "")
-                    rec["front"] = orig_translation
-                    rec["translation"] = orig_front
             return {"success": True, "recommendations": recs, "error": None}
         else:
             return {"success": False, "recommendations": [], "error": f"No se pudo parsear como lista: {content[:200]}"}

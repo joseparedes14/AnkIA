@@ -414,40 +414,59 @@ with st.sidebar:
     st.divider()
 
     # Modelo fijo, no mostramos selector
-    # Lista de contextos existentes
+    # Lista de contextos existentes, agrupados por carpeta
     contexts = context_manager.list_contexts()
+    folders = context_manager.list_folders()
+
+    # Agrupar contextos por carpeta
+    root_contexts = [c for c in contexts if not c.get("folder")]
+    folder_groups = {}
+    for f in folders:
+        folder_groups[f] = [c for c in contexts if c.get("folder") == f]
+
+    def _render_context_card(ctx, is_active):
+        col_ctx, col_del = st.columns([5, 1])
+
+        with col_ctx:
+            active_class = "active" if is_active else ""
+            st.markdown(
+                f'<div class="context-card {active_class}">'
+                f'  <div class="context-name">📖 {ctx["name"]}</div>'
+                f'  <div class="context-count">{ctx["card_count"]} tarjetas</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "Seleccionar" if not is_active else "✓ Activo",
+                key=f"select_{ctx['name']}",
+                disabled=is_active,
+                use_container_width=True,
+            ):
+                st.session_state.active_context = ctx["name"]
+                st.session_state.translation_result = None
+                st.rerun()
+
+        with col_del:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🗑️", key=f"delete_{ctx['name']}", help=f"Eliminar {ctx['name']}"):
+                context_manager.delete_context(ctx["name"])
+                if st.session_state.active_context == ctx["name"]:
+                    st.session_state.active_context = None
+                st.rerun()
 
     if contexts:
-        for ctx in contexts:
-            is_active = st.session_state.active_context == ctx["name"]
-            col_ctx, col_del = st.columns([5, 1])
+        # Mostrar carpetas
+        for folder_name, folder_ctxs in folder_groups.items():
+            with st.expander(f"📁 {folder_name} ({len(folder_ctxs)})", expanded=True):
+                for ctx in folder_ctxs:
+                    _render_context_card(ctx, st.session_state.active_context == ctx["name"])
 
-            with col_ctx:
-                active_class = "active" if is_active else ""
-                st.markdown(
-                    f'<div class="context-card {active_class}">'
-                    f'  <div class="context-name">📖 {ctx["name"]}</div>'
-                    f'  <div class="context-count">{ctx["card_count"]} tarjetas</div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                if st.button(
-                    "Seleccionar" if not is_active else "✓ Activo",
-                    key=f"select_{ctx['name']}",
-                    disabled=is_active,
-                    use_container_width=True,
-                ):
-                    st.session_state.active_context = ctx["name"]
-                    st.session_state.translation_result = None
-                    st.rerun()
-
-            with col_del:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"delete_{ctx['name']}", help=f"Eliminar {ctx['name']}"):
-                    context_manager.delete_context(ctx["name"])
-                    if st.session_state.active_context == ctx["name"]:
-                        st.session_state.active_context = None
-                    st.rerun()
+        # Mostrar mazos sin carpeta
+        if root_contexts:
+            if folder_groups:
+                st.markdown('<div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin-top:0.5rem; margin-bottom:0.3rem;">Sin carpeta</div>', unsafe_allow_html=True)
+            for ctx in root_contexts:
+                _render_context_card(ctx, st.session_state.active_context == ctx["name"])
     else:
         st.markdown(
             '<div class="empty-state">'
@@ -473,7 +492,7 @@ with st.sidebar:
         key="new_context_description",
         height=68,
     )
-    
+
     col_lang1, col_lang2 = st.columns(2)
     langs = ["Español", "Inglés", "Alemán", "Francés", "Italiano", "Portugués", "Japonés", "Chino", "Coreano", "Ruso", "Árabe"]
     with col_lang1:
@@ -484,10 +503,24 @@ with st.sidebar:
     levels = ["A1", "A2", "B1", "B2", "C1", "C2"]
     new_level = st.selectbox("Nivel CEFR", levels, index=3, key="new_level")
 
+    # Selector de carpeta
+    existing_folders = context_manager.list_folders()
+    folder_options = ["(Sin carpeta)"] + existing_folders + ["+ Nueva carpeta..."]
+    new_folder_choice = st.selectbox("Carpeta", folder_options, key="new_folder_choice")
+
+    if new_folder_choice == "+ Nueva carpeta...":
+        new_folder_name = st.text_input(
+            "Nombre de la carpeta",
+            placeholder="Ej: Aleman Junio",
+            key="new_folder_name_input",
+        )
+    else:
+        new_folder_name = "" if new_folder_choice == "(Sin carpeta)" else new_folder_choice
+
     if st.button("Crear contexto", key="create_context", use_container_width=True, type="primary"):
         if new_context_name.strip():
             try:
-                result = context_manager.create_context(new_context_name, new_source_lang, new_target_lang, new_level, new_context_description.strip())
+                result = context_manager.create_context(new_context_name, new_source_lang, new_target_lang, new_level, new_context_description.strip(), new_folder_name)
                 st.session_state.active_context = result["name"]
                 st.toast(f"✅ Contexto '{result['name']}' creado", icon="📚")
                 st.rerun()

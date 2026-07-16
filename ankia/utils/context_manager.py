@@ -2,6 +2,7 @@
 AnkIA - Context Manager
 CRUD de contextos/vocabularios. Cada contexto es un archivo .txt en la carpeta decks/.
 También gestiona metadata.json para recordar los idiomas asociados a cada contexto.
+Soporta carpetas para organizar mazos.
 """
 
 import os
@@ -52,7 +53,7 @@ def list_contexts() -> list[dict]:
     """Lista todos los contextos disponibles.
 
     Returns:
-        Lista de dicts con {name, path, card_count, source_lang, target_lang, level, description}
+        Lista de dicts con {name, path, card_count, source_lang, target_lang, level, description, folder}
     """
     _ensure_decks_dir()
     contexts = []
@@ -73,11 +74,26 @@ def list_contexts() -> list[dict]:
                 "target_lang": ctx_meta.get("target_lang", "Desconocido"),
                 "level": ctx_meta.get("level", "B2"),
                 "description": ctx_meta.get("description", ""),
+                "folder": ctx_meta.get("folder", ""),
             })
 
     return contexts
 
-def create_context(name: str, source_lang: str, target_lang: str, level: str = "B2", description: str = "") -> dict:
+def list_folders() -> list[str]:
+    """Lista todas las carpetas únicas que existen en los contextos.
+
+    Returns:
+        Lista ordenada de nombres de carpetas (sin incluir vacío/root)
+    """
+    metadata = _load_metadata()
+    folders = set()
+    for ctx_meta in metadata.values():
+        folder = ctx_meta.get("folder", "")
+        if folder:
+            folders.add(folder)
+    return sorted(folders)
+
+def create_context(name: str, source_lang: str, target_lang: str, level: str = "B2", description: str = "", folder: str = "") -> dict:
     """Crea un nuevo contexto (archivo .txt vacío y guarda sus idiomas y nivel).
 
     Args:
@@ -86,9 +102,10 @@ def create_context(name: str, source_lang: str, target_lang: str, level: str = "
         target_lang: Idioma de destino
         level: Nivel (ej: 'B2')
         description: Descripción opcional para contextualizar las recomendaciones (ej: 'vocabulario de cocina')
+        folder: Carpeta para organizar el mazo (vacío = sin carpeta)
 
     Returns:
-        Dict con {name, path, source_lang, target_lang, level, description} del contexto creado
+        Dict con {name, path, source_lang, target_lang, level, description, folder} del contexto creado
 
     Raises:
         ValueError: Si el nombre es vacío o el contexto ya existe
@@ -115,10 +132,11 @@ def create_context(name: str, source_lang: str, target_lang: str, level: str = "
         "target_lang": target_lang,
         "level": level,
         "description": description,
+        "folder": folder,
     }
     _save_metadata(metadata)
 
-    return {"name": safe_name, "path": path, "source_lang": source_lang, "target_lang": target_lang, "level": level, "description": description}
+    return {"name": safe_name, "path": path, "source_lang": source_lang, "target_lang": target_lang, "level": level, "description": description, "folder": folder}
 
 def delete_context(name: str) -> bool:
     """Elimina un contexto (borra el archivo .txt y su metadata).
@@ -142,6 +160,62 @@ def delete_context(name: str) -> bool:
         deleted = True
         
     return deleted
+
+def move_context(name: str, folder: str) -> bool:
+    """Mueve un contexto a una carpeta.
+
+    Args:
+        name: Nombre del contexto
+        folder: Nombre de la carpeta destino (vacío = mover a raíz)
+
+    Returns:
+        True si se movió, False si no existía
+    """
+    metadata = _load_metadata()
+    if name not in metadata:
+        return False
+    metadata[name]["folder"] = folder
+    _save_metadata(metadata)
+    return True
+
+def rename_folder(old_name: str, new_name: str) -> int:
+    """Renombra una carpeta en todos los contextos.
+
+    Args:
+        old_name: Nombre actual de la carpeta
+        new_name: Nuevo nombre de la carpeta
+
+    Returns:
+        Número de contextos actualizados
+    """
+    metadata = _load_metadata()
+    count = 0
+    for ctx_meta in metadata.values():
+        if ctx_meta.get("folder", "") == old_name:
+            ctx_meta["folder"] = new_name
+            count += 1
+    if count > 0:
+        _save_metadata(metadata)
+    return count
+
+def delete_folder(name: str) -> int:
+    """Elimina una carpeta moviendo todos sus contextos a raíz.
+
+    Args:
+        name: Nombre de la carpeta a eliminar
+
+    Returns:
+        Número de contextos movidos a raíz
+    """
+    metadata = _load_metadata()
+    count = 0
+    for ctx_meta in metadata.values():
+        if ctx_meta.get("folder", "") == name:
+            ctx_meta["folder"] = ""
+            count += 1
+    if count > 0:
+        _save_metadata(metadata)
+    return count
 
 def get_deck_path(name: str) -> str | None:
     """Obtiene la ruta completa del archivo de un contexto.
@@ -167,10 +241,10 @@ def get_context_metadata(name: str) -> dict:
         name: Nombre del contexto
         
     Returns:
-        Dict con {"source_lang": "...", "target_lang": "...", "level": "...", "description": "..."}
+        Dict con {"source_lang": "...", "target_lang": "...", "level": "...", "description": "...", "folder": "..."}
     """
     metadata = _load_metadata()
-    default = {"source_lang": "Español", "target_lang": "Alemán", "level": "B2", "description": ""}
+    default = {"source_lang": "Español", "target_lang": "Alemán", "level": "B2", "description": "", "folder": ""}
     return metadata.get(name, default)
 
 def _count_cards(path: str) -> int:

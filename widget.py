@@ -1,7 +1,7 @@
 import sys
 import os
 from PySide6.QtCore import Qt, QThread, Signal, QSize, QTimer
-from PySide6.QtGui import QColor, QCursor, QGuiApplication
+from PySide6.QtGui import QColor, QCursor, QGuiApplication, QFont
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QStackedWidget,
@@ -696,6 +696,22 @@ class AnkiaWidget(QWidget):
         self.new_ctx_description.setPlaceholderText("Ej: vocabulario de cocina")
         v_desc.addWidget(self.new_ctx_description)
         layout.addLayout(v_desc)
+        layout.addSpacing(20)
+
+        # Carpeta
+        v_folder = QVBoxLayout()
+        v_folder.setSpacing(6)
+        lbl_folder = QLabel("CARPETA")
+        lbl_folder.setObjectName("FieldLabel")
+        v_folder.addWidget(lbl_folder)
+        self.combo_folder = QComboBox()
+        self.combo_folder.setEditable(True)
+        self.combo_folder.addItem("(Sin carpeta)")
+        for f in context_manager.list_folders():
+            self.combo_folder.addItem(f)
+        self.combo_folder.setCurrentIndex(0)
+        v_folder.addWidget(self.combo_folder)
+        layout.addLayout(v_folder)
         layout.addSpacing(24)
 
         # Crear
@@ -724,12 +740,34 @@ class AnkiaWidget(QWidget):
         header.addWidget(btn_back)
         header.addStretch()
         btn_delete_mazo = QPushButton("ELIMINAR")
-        btn_delete_mazo.setObjectName("GhostButton")
+        btn_delete_mazo.setObjectName("DangerButton")
         btn_delete_mazo.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_delete_mazo.clicked.connect(self.delete_active_mazo)
         header.addWidget(btn_delete_mazo)
         layout.addLayout(header)
-        layout.addSpacing(24)
+        layout.addSpacing(14)
+
+        # Mover a carpeta
+        move_row = QHBoxLayout()
+        move_row.setSpacing(8)
+        lbl_move = QLabel("CARPETA:")
+        lbl_move.setObjectName("FieldLabel")
+        move_row.addWidget(lbl_move)
+        self.combo_move_folder = QComboBox()
+        self.combo_move_folder.setEditable(True)
+        self.combo_move_folder.addItem("(Sin carpeta)")
+        for f in context_manager.list_folders():
+            self.combo_move_folder.addItem(f)
+        self.combo_move_folder.setFixedWidth(160)
+        move_row.addWidget(self.combo_move_folder)
+        btn_move = QPushButton("MOVER")
+        btn_move.setObjectName("GhostButton")
+        btn_move.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_move.clicked.connect(self.move_active_mazo)
+        move_row.addWidget(btn_move)
+        move_row.addStretch()
+        layout.addLayout(move_row)
+        layout.addSpacing(10)
 
         # Title
         self.deck_title_label = QLabel("MAZO")
@@ -952,17 +990,51 @@ class AnkiaWidget(QWidget):
     # ─────────────────────────────────────────────
     def refresh_contexts(self):
         self.list_contexts.clear()
-        for ctx in context_manager.list_contexts():
-            item = QListWidgetItem(ctx['name'])
-            item.setSizeHint(QSize(0, 52))
-            item.setData(Qt.ItemDataRole.UserRole, ctx['name'])
-            self.list_contexts.addItem(item)
+        contexts = context_manager.list_contexts()
+        folders = context_manager.list_folders()
+
+        # Agrupar por carpeta
+        root_contexts = [c for c in contexts if not c.get("folder")]
+        folder_groups = {}
+        for f in folders:
+            folder_groups[f] = [c for c in contexts if c.get("folder") == f]
+
+        # Mostrar carpetas con sus mazos
+        for folder_name, folder_ctxs in folder_groups.items():
+            header = QListWidgetItem(f"📁  {folder_name}")
+            header.setFlags(Qt.ItemFlag.NoItemFlags)
+            header.setForeground(QColor("#f59e0b"))
+            header.setFont(QFont("Inter", 10, QFont.Weight.Bold))
+            header.setSizeHint(QSize(0, 36))
+            self.list_contexts.addItem(header)
+            for ctx in folder_ctxs:
+                item = QListWidgetItem(f"    📖  {ctx['name']}  ({ctx['card_count']})")
+                item.setSizeHint(QSize(0, 44))
+                item.setData(Qt.ItemDataRole.UserRole, ctx['name'])
+                self.list_contexts.addItem(item)
+
+        # Mazos sin carpeta
+        if root_contexts:
+            if folder_groups:
+                sep = QListWidgetItem("───  SIN CARPETA  ───")
+                sep.setFlags(Qt.ItemFlag.NoItemFlags)
+                sep.setForeground(QColor("#52525b"))
+                sep.setFont(QFont("Inter", 9, QFont.Weight.Bold))
+                sep.setSizeHint(QSize(0, 28))
+                self.list_contexts.addItem(sep)
+            for ctx in root_contexts:
+                item = QListWidgetItem(f"📖  {ctx['name']}  ({ctx['card_count']})")
+                item.setSizeHint(QSize(0, 44))
+                item.setData(Qt.ItemDataRole.UserRole, ctx['name'])
+                self.list_contexts.addItem(item)
 
     def create_context(self):
         name = self.new_ctx_name.text().strip()
         if not name:
             self.show_toast("Nombre vacío")
             return
+        folder_text = self.combo_folder.currentText().strip()
+        folder = "" if folder_text == "(Sin carpeta)" else folder_text
         try:
             context_manager.create_context(
                 name,
@@ -970,6 +1042,7 @@ class AnkiaWidget(QWidget):
                 self.combo_target.currentText(),
                 self.combo_level.currentText(),
                 self.new_ctx_description.text().strip(),
+                folder,
             )
             self.refresh_contexts()
             self.new_ctx_name.clear()
@@ -986,6 +1059,8 @@ class AnkiaWidget(QWidget):
                 self.show_toast("Selecciona un mazo primero")
                 return
             name = items[0].data(Qt.ItemDataRole.UserRole)
+            if not name:
+                return
         reply = QMessageBox.question(
             self,
             "Confirmar",
@@ -1148,6 +1223,8 @@ class AnkiaWidget(QWidget):
             self.show_toast("Selecciona un mazo primero")
             return
         ctx_name = items[0].data(Qt.ItemDataRole.UserRole)
+        if not ctx_name:
+            return
         self.active_context = ctx_name
         self.render_deck_view()
         self.stacked_widget.setCurrentWidget(self.deck_page)
@@ -1211,6 +1288,20 @@ class AnkiaWidget(QWidget):
             self.stacked_widget.setCurrentWidget(self.main_page)
             self.show_toast("Mazo eliminado")
 
+    def move_active_mazo(self):
+        """Mueve el mazo activo a la carpeta seleccionada."""
+        if not self.active_context:
+            return
+        folder_text = self.combo_move_folder.currentText().strip()
+        folder = "" if folder_text == "(Sin carpeta)" else folder_text
+        if context_manager.move_context(self.active_context, folder):
+            self.refresh_contexts()
+            self.render_deck_view()
+            label = folder if folder else "raíz"
+            self.show_toast(f"Movido a '{label}'")
+        else:
+            self.show_toast("Error al mover")
+
     def render_deck_view(self):
         if not self.active_context:
             return
@@ -1227,6 +1318,15 @@ class AnkiaWidget(QWidget):
             f"NIVEL {ctx_meta.get('level', 'B2')}"
             f"{desc_text}"
         )
+
+        # Actualizar combo de carpeta
+        current_folder = ctx_meta.get("folder", "")
+        folder_display = current_folder if current_folder else "(Sin carpeta)"
+        idx = self.combo_move_folder.findText(folder_display)
+        if idx >= 0:
+            self.combo_move_folder.setCurrentIndex(idx)
+        else:
+            self.combo_move_folder.setEditText(folder_display)
 
         self._clear_layout(self.deck_cards_layout)
 

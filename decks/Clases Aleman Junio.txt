@@ -5,3 +5,4 @@ Verletzung;(la) lesión <br><br> <i>Sufrió una lesión durante el partido.</i>
 Stipendium / Studienbeihilfe;(la) beca <br><br> <i>Ella recibió una beca para estudiar en Alemania.</i>
 Einfluss;(la) influencia <br><br> <i>Su discurso tuvo una gran influencia en la audiencia.</i>
 Niederlage;(la) derrota <br><br> <i>El equipo sufrió una derrota inesperada en el último partido.</i>
+garaje / cochera;(die) Garage <br><br> <i>Ich parke das Auto in der Garage.</i>

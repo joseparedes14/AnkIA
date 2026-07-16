@@ -1,15 +1,10 @@
 {
-    "Vocabulario CY1": {
-        "source_lang": "Inglés",
-        "target_lang": "Español",
-        "level": "C1",
-        "description": "Contexto de jerga estadounidense y serie de bandas"
-    },
     "Vocab Aleman": {
         "source_lang": "Alemán",
         "target_lang": "Español",
         "level": "B2",
-        "description": ""
+        "description": "",
+        "folder": "Aleman"
     },
     "Conectores Aleman": {
         "source_lang": "Alemán",
@@ -17,10 +12,30 @@
         "level": "B2",
         "description": ""
     },
+    "Sex Education Series Vocabulary": {
+        "source_lang": "Inglés",
+        "target_lang": "Español",
+        "level": "B2",
+        "description": ""
+    },
+    "C1 Idioms Expressions": {
+        "source_lang": "Inglés",
+        "target_lang": "Español",
+        "level": "C1",
+        "description": "Expresiones de nivel C1 Ingles",
+        "folder": ""
+    },
+    "Sustantivos Aleman": {
+        "source_lang": "Alemán",
+        "target_lang": "Español",
+        "level": "B2",
+        "description": "Sustantivos de todo tipo"
+    },
     "Clases Aleman Junio": {
         "source_lang": "Alemán",
         "target_lang": "Español",
         "level": "B2",
-        "description": ""
+        "description": "",
+        "folder": "Aleman"
     }
 }

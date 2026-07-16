@@ -2,3 +2,6 @@ trotzdem;sin embargo <br><br> <i>Quería salir, pero estaba lloviendo; sin embar
 durch + Akkusativ;a través de <br><br> <i>Viajamos a través del bosque.</i>
 deshalb;por eso <br><br> <i>Estaba lloviendo, por eso llevé un paraguas.</i>
 bevor;antes de que <br><br> <i>Lávate las manos antes de que comas.</i>
+además;außerdem <br><br> <i>Ich habe das Buch gelesen, und außerdem habe ich den Film gesehen.</i>
+porque;denn <br><br> <i>Ich gehe nach Hause, denn ich bin müde.</i>
+aunque;obwohl <br><br> <i>Obwohl es regnet, gehen wir spazieren.</i>
